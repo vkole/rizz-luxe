@@ -65,7 +65,13 @@ export default function Home() {
             style={{
               padding: '12px 32px',
               background: 'linear-gradient(135deg, #ff006e, #8338ec)',
-              color: '#f0launchHover ? '0 0 40px rgba(255, 0, 110, 0.5)' : '0 0 30px rgba(255, 0, 110, 0.3)',
+              color: '#f0f0f0',
+              textDecoration: 'none',
+              borderRadius: '6px',
+              fontWeight: 'bold',
+              textTransform: 'uppercase',
+              letterSpacing: '1px',
+              boxShadow: launchHover ? '0 0 40px rgba(255, 0, 110, 0.5)' : '0 0 30px rgba(255, 0, 110, 0.3)',
               transition: 'all 0.3s ease',
               border: 'none',
               cursor: 'pointer',
@@ -95,13 +101,7 @@ export default function Home() {
               boxShadow: featuresHover ? '0 0 20px rgba(131, 56, 236, 0.3)' : 'none',
             }}
             onMouseEnter={() => setFeaturesHover(true)}
-            onMouseLeave={() => setFeaturesHover(false) e.currentTarget.style.background = 'rgba(131, 56, 236, 0.4)';
-              e.currentTarget.style.boxShadow = '0 0 20px rgba(131, 56, 236, 0.3)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'rgba(131, 56, 236, 0.2)';
-              e.currentTarget.style.boxShadow = 'none';
-            }}
+            onMouseLeave={() => setFeaturesHover(false)}
           >
             Features
           </a>

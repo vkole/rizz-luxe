@@ -8,8 +8,8 @@ string HUD_URL = ""; // Set your web HUD URL here
 key OWNER = NULL_KEY;
 
 // MOAP Configuration
-integer MOAP_LINK = 2; // Link number for MOAP screen (adjust based on your HUD structure)
-integer MOAP_FACE = 0; // Face number for MOAP screen
+integer MOAP_LINK = 1; // Link number for MOAP screen (adjust based on your HUD structure)
+integer MOAP_FACE = 4; // Face number for MOAP screen
 
 // State variables
 integer currentDanceIndex = -1;

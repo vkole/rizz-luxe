@@ -27,73 +27,7 @@ integer showButtonNumbers = TRUE;
 integer COMMAND_CHANNEL = -1234567890;
 integer HTTP_REQUEST_TIMEOUT = 30;
 
-// Initialize
-default {
-    state_entry() {
-        OWNER = llGetOwner();
-        llOwnerSay("Rizz Luxe Dancer HUD initialized");
-        llListen(COMMAND_CHANNEL, "", NULL_KEY, "");
-        
-        // Set up MOAP
-        llSetPrimMediaParams(0, [
-            PRIM_MEDIA_AUTO_PLAY, TRUE,
-            PRIM_MEDIA_FIRST_CLICK_INTERACT, TRUE,
-            PRIM_MEDIA_PERMS_INTERACT, PRIM_MEDIA_PERM_ANYONE,
-            PRIM_MEDIA_PERMS_CONTROL, PRIM_MEDIA_PERM_ANYONE,
-            PRIM_MEDIA_WIDTH_PIXELS, 1024,
-            PRIM_MEDIA_HEIGHT_PIXELS, 768,
-            PRIM_MEDIA_CURRENT_URL, HUD_URL
-        ]);
-        
-        // Load saved options
-        loadOptions();
-    }
-    
-    on_rez(integer start_param) {
-        llResetScript();
-    }
-    
-    changed(integer change) {
-        if (change & CHANGED_OWNER) {
-            llResetScript();
-        }
-    }
-    
-    listen(integer channel, string name, key id, string message) {
-        if (id != llGetOwner()) return;
-        
-        // Parse command from web HUD
-        parseCommand(message);
-    }
-    
-    http_response(key request_id, integer status, list metadata, string body) {
-        // Handle HTTP responses from backend API
-        if (status == 200) {
-            llOwnerSay("API request successful");
-            // Parse response and update HUD state
-            parseAPIResponse(body);
-        } else {
-            llOwnerSay("API request failed: " + (string)status);
-        }
-    }
-    
-    link_message(integer sender_num, integer num, string str, key id) {
-        // Handle link messages from other scripts in HUD
-        if (num == COMMAND_CHANNEL) {
-            parseCommand(str);
-        }
-    }
-    
-    touch_start(integer total_number) {
-        key toucher = llDetectedKey(0);
-        if (toucher != llGetOwner()) return;
-        
-        // Toggle HUD visibility or show menu
-        showMainMenu();
-    }
-}
-
-// Command parser
+// Function declarations
 parseCommand(string message) {
     list parts = llParseString2List(message, ["|"], []);
     string command = llList2String(parts, 0);
@@ -164,21 +98,17 @@ parseCommand(string message) {
     }
 }
 
-// Dance playback functions
 playDance(string danceId) {
-    // Find animation by ID
     integer index = llListFindList(danceList, [danceId]);
     if (index == -1) {
         llOwnerSay("Dance not found: " + danceId);
         return;
     }
     
-    // Stop current animation if playing
     if (isPlaying && currentAnimation != NULL_KEY) {
         llStopAnimation(currentAnimation);
     }
     
-    // Start new animation
     currentAnimation = (key)llList2Key(danceList, index + 1);
     currentDanceIndex = index;
     isPlaying = TRUE;
@@ -186,7 +116,6 @@ playDance(string danceId) {
     llStartAnimation(currentAnimation);
     llOwnerSay("Playing: " + llList2String(danceList, index + 2));
     
-    // Notify web HUD
     sendToHUD("DANCE_PLAYING|" + danceId);
 }
 
@@ -198,7 +127,6 @@ stopDance() {
         currentDanceIndex = -1;
         llOwnerSay("Dance stopped");
         
-        // Notify web HUD
         sendToHUD("DANCE_STOPPED");
     }
 }
@@ -213,13 +141,10 @@ toggleFavorite(string danceId) {
         llOwnerSay("Removed from favorites");
     }
     
-    // Notify web HUD
     sendToHUD("FAVORITE_TOGGLED|" + danceId);
 }
 
-// Library management functions
 createFolder(string folderName, string parentId) {
-    // Send to backend API
     string url = API_URL + "/api/library/folders/create";
     string body = llDumpList2String([
         "name=" + llEscapeURL(folderName),
@@ -240,7 +165,6 @@ renameItem(string itemId, string itemType, string newName) {
 deleteItem(string itemId, string itemType) {
     if (confirmBeforeDelete) {
         llOwnerSay("Confirm delete of " + itemType + " " + itemId);
-        // In a full implementation, show dialog for confirmation
     }
     
     string endpoint = "/api/library/" + itemType + "s/" + itemId;
@@ -284,7 +208,6 @@ createBackup(string backupName) {
     llHTTPRequest(url, [HTTP_METHOD, "POST", HTTP_MIMETYPE, "application/x-www-form-urlencoded"], body);
 }
 
-// Options management
 updateOptions(list parts) {
     showFavoritesFirst = (integer)llList2String(parts, 1);
     autoScrollList = (integer)llList2String(parts, 2);
@@ -296,7 +219,6 @@ updateOptions(list parts) {
 }
 
 saveOptions() {
-    // Save to object description or notecard
     string options = llDumpList2String([
         showFavoritesFirst,
         autoScrollList,
@@ -320,11 +242,8 @@ loadOptions() {
     }
 }
 
-// Data sending functions
 sendToHUD(string message) {
-    // Send to web HUD via MOAP
     llSetPrimMediaParams(0, [PRIM_MEDIA_CURRENT_URL, HUD_URL + "?msg=" + llEscapeURL(message)]);
-    // Also send via link message for backup
     llMessageLinked(LINK_THIS, COMMAND_CHANNEL, message, NULL_KEY);
 }
 
@@ -361,12 +280,11 @@ sendOptionsToHUD() {
         "\"autoScrollList\":" + (string)autoScrollList,
         "\"confirmBeforeDelete\":" + (string)confirmBeforeDelete,
         "\"showButtonNumbers\":" + (string)showButtonNumbers
-    }, ",");
+    ], ",");
     
     sendToHUD("OPTIONS_DATA|{" + optionsJson + "}");
 }
 
-// Animation scanning
 scanAnimations() {
     llOwnerSay("Scanning inventory for animations...");
     
@@ -378,7 +296,6 @@ scanAnimations() {
         string name = llGetInventoryName(INVENTORY_ANIMATION, i);
         key animKey = llGetInventoryKey(name);
         
-        // Generate ID from name (in production, use UUID)
         string danceId = llMD5String(name, 0);
         
         danceList += [danceId, animKey, name];
@@ -386,24 +303,77 @@ scanAnimations() {
     
     llOwnerSay("Found " + (string)count + " animations");
     
-    // Send to web HUD
     sendLibraryToHUD();
 }
 
-// Menu system
 showMainMenu() {
     list buttons = ["Play", "Stop", "Scan", "Options", "Close"];
     llDialog(OWNER, "Rizz Luxe Dancer HUD", buttons, COMMAND_CHANNEL);
 }
 
-// API response parser
 parseAPIResponse(string body) {
-    // Parse JSON response from backend API
-    // This is a simplified parser - in production, use proper JSON parsing
-    
     if (llSubStringIndex(body, "\"success\":true") != -1) {
         llOwnerSay("Operation successful");
     } else {
         llOwnerSay("Operation failed");
+    }
+}
+
+// Initialize
+default {
+    state_entry() {
+        OWNER = llGetOwner();
+        llOwnerSay("Rizz Luxe Dancer HUD initialized");
+        llListen(COMMAND_CHANNEL, "", NULL_KEY, "");
+        
+        llSetPrimMediaParams(0, [
+            PRIM_MEDIA_AUTO_PLAY, TRUE,
+            PRIM_MEDIA_FIRST_CLICK_INTERACT, TRUE,
+            PRIM_MEDIA_PERMS_INTERACT, PRIM_MEDIA_PERM_ANYONE,
+            PRIM_MEDIA_PERMS_CONTROL, PRIM_MEDIA_PERM_ANYONE,
+            PRIM_MEDIA_WIDTH_PIXELS, 1024,
+            PRIM_MEDIA_HEIGHT_PIXELS, 768,
+            PRIM_MEDIA_CURRENT_URL, HUD_URL
+        ]);
+        
+        loadOptions();
+    }
+    
+    on_rez(integer start_param) {
+        llResetScript();
+    }
+    
+    changed(integer change) {
+        if (change & CHANGED_OWNER) {
+            llResetScript();
+        }
+    }
+    
+    listen(integer channel, string name, key id, string message) {
+        if (id != llGetOwner()) return;
+        
+        parseCommand(message);
+    }
+    
+    http_response(key request_id, integer status, list metadata, string body) {
+        if (status == 200) {
+            llOwnerSay("API request successful");
+            parseAPIResponse(body);
+        } else {
+            llOwnerSay("API request failed: " + (string)status);
+        }
+    }
+    
+    link_message(integer sender_num, integer num, string str, key id) {
+        if (num == COMMAND_CHANNEL) {
+            parseCommand(str);
+        }
+    }
+    
+    touch_start(integer total_number) {
+        key toucher = llDetectedKey(0);
+        if (toucher != llGetOwner()) return;
+        
+        showMainMenu();
     }
 }

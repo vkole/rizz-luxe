@@ -1,6 +1,28 @@
 /**
  * LSL Command Service
  * Handles JSON communication between MOAP HUD and LSL scripts
+ * 
+ * Real LSL Commands:
+ * - CREATE_FOLDER: Create new folder
+ * - RENAME_ITEM: Rename folder or dance
+ * - DELETE_ITEM: Delete folder or dance
+ * - MOVE_ITEM: Move item to different folder
+ * - COPY_ITEM: Copy item
+ * - PLAY_DANCE: Start playing animation
+ * - STOP_DANCE: Stop playback
+ * - PAUSE_DANCE: Pause playback
+ * - TOGGLE_LOOP: Toggle loop mode
+ * - TOGGLE_FAVORITE: Mark/unmark as favorite
+ * - CREATE_SEQUENCE: Create new sequence
+ * - PLAY_SEQUENCE: Play entire sequence
+ * - DELETE_SEQUENCE: Delete sequence
+ * - GET_NEARBY: Scan nearby avatars
+ * - INVITE_AVATAR: Send dance invitation
+ * - SCAN_INVENTORY: Scan for new dances
+ * - EXPORT_LIBRARY: Export library data
+ * - IMPORT_LIBRARY: Import library data
+ * - BACKUP_LIBRARY: Create backup
+ * - RESTORE_BACKUP: Restore from backup
  */
 
 export interface LSLCommand {

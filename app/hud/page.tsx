@@ -6,9 +6,12 @@ import TabBar from '@/components/hud/TabBar';
 import Sidebar from '@/components/hud/Sidebar';
 import MainPanel from '@/components/hud/MainPanel';
 import PlaybackControls from '@/components/hud/PlaybackControls';
+import ManageLibrary from '@/components/hud/ManageLibrary';
+import OptionsSection from '@/components/hud/OptionsSection';
 import NotificationSystem from '@/components/hud/NotificationSystem';
 import ModalSystem from '@/components/hud/ModalSystem';
 import '@/styles/hud.css';
+import { apiClient } from '@/lib/apiClient';
 
 type Tab = 'all' | 'seq' | 'near' | 'inv';
 
@@ -19,20 +22,28 @@ export default function HUD() {
   const [dances, setDances] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [modals, setModals] = useState<any[]>([]);
-  const [selectedFolders, setSelectedFolders] = useState<string[]>(['My Library']);
+  const [selectedFolders, setSelectedFolders] = useState<string[]>([]);
+  const [selectedItem, setSelectedItem] = useState<{ id: string; type: 'folder' | 'dance' } | null>(null);
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Initialize sample data
+  // Load initial data from backend
   useEffect(() => {
-    const sampleDances = [
-      { id: 'dance_001', name: 'Rizz Glide', favorite: true, category: 'Club Dances' },
-      { id: 'dance_002', name: 'Body Roll', favorite: false, category: 'Club Dances' },
-      { id: 'dance_003', name: 'Slow Wine', favorite: false, category: 'Slow Dances' },
-      { id: 'dance_004', name: 'Twerk', favorite: true, category: 'Twerk' },
-      { id: 'dance_005', name: 'Couple Sway', favorite: false, category: 'Couple Dances' },
-      { id: 'dance_006', name: 'Hip Shake', favorite: false, category: 'Club Dances' },
-    ];
-    setDances(sampleDances);
+    loadLibraryData();
   }, []);
+
+  const loadLibraryData = async () => {
+    setIsLoading(true);
+    try {
+      const danceResult = await apiClient.getDances(selectedFolderId || undefined);
+      setDances(danceResult.dances || []);
+    } catch (err) {
+      console.error('Failed to load library:', err);
+      addNotification('error', 'Failed to load library');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Send JSON command to LSL
   const sendCommand = (action: string, data?: any) => {
@@ -41,12 +52,12 @@ export default function HUD() {
       timestamp: new Date().toISOString(),
       ...data,
     };
-    
+
     console.log('Sending LSL command:', JSON.stringify(command));
-    
+
     // In a real MOAP implementation, this would be:
     // window.parent.postMessage(command, '*');
-    
+
     addNotification('info', `${action} executed`);
   };
 
@@ -84,24 +95,51 @@ export default function HUD() {
     sendCommand('TOGGLE_FAVORITE', { danceId });
   };
 
+  const handleFolderSelect = (folderId: string | null) => {
+    setSelectedFolderId(folderId);
+    setSelectedItem(null);
+    loadLibraryData();
+  };
+
+  const handleSelectItem = (item: { id: string; type: 'folder' | 'dance' } | null) => {
+    setSelectedItem(item);
+  };
+
   return (
     <div className="hud-container">
       <div className="hud-wrapper">
         <Header currentDance={currentDance} isPlaying={isPlaying} />
-        
+
         <div className="hud-main">
           <TabBar activeTab={activeTab} setActiveTab={setActiveTab} />
-          
+
           <div className="hud-content">
-            <Sidebar selectedFolders={selectedFolders} setSelectedFolders={setSelectedFolders} />
-            
+            <Sidebar
+              selectedFolders={selectedFolders}
+              setSelectedFolders={setSelectedFolders}
+              onFolderSelect={handleFolderSelect}
+            />
+
             <MainPanel
               activeTab={activeTab}
               dances={dances}
               currentDance={currentDance}
               onPlayDance={playDance}
               onToggleFavorite={toggleFavorite}
+              onSelectItem={handleSelectItem}
+              selectedItem={selectedItem}
             />
+          </div>
+
+          {/* Bottom Control Area: Manage Library & Options */}
+          <div className="hud-bottom">
+            <ManageLibrary
+              onFolderCreated={loadLibraryData}
+              onLibraryUpdated={loadLibraryData}
+              selectedItem={selectedItem}
+              onSelectItem={handleSelectItem}
+            />
+            <OptionsSection onOptionsChanged={loadLibraryData} />
           </div>
         </div>
 

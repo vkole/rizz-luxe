@@ -7,6 +7,10 @@ string API_URL = ""; // Set your backend API URL here
 string HUD_URL = ""; // Set your web HUD URL here
 key OWNER = NULL_KEY;
 
+// MOAP Configuration
+integer MOAP_LINK = 2; // Link number for MOAP screen (adjust based on your HUD structure)
+integer MOAP_FACE = 0; // Face number for MOAP screen
+
 // State variables
 integer currentDanceIndex = -1;
 key currentAnimation = NULL_KEY;
@@ -93,9 +97,42 @@ parseCommand(string message) {
     else if (command == "GET_OPTIONS") {
         sendOptionsToHUD();
     }
-    else if (command == "SCAN_ANIMATIONS") {
+    else if (command == "SCAN_ANIMATIONS" || command == "SCAN_INVENTORY") {
         scanAnimations();
     }
+}
+
+initializeMOAP() {
+    llOwnerSay("Loading Rizz Luxe Dancer MOAP...");
+    
+    if (HUD_URL == "") {
+        llOwnerSay("ERROR: MOAP URL not configured. Please set HUD_URL in script.");
+        return;
+    }
+    
+    // Check if the MOAP link exists
+    integer linkCount = llGetNumberOfPrims();
+    if (MOAP_LINK > linkCount) {
+        llOwnerSay("ERROR: MOAP screen link " + (string)MOAP_LINK + " not found. HUD has " + (string)linkCount + " prims.");
+        return;
+    }
+    
+    // Set up MOAP on the correct link
+    list mediaParams = [
+        PRIM_MEDIA_AUTO_PLAY, TRUE,
+        PRIM_MEDIA_FIRST_CLICK_INTERACT, TRUE,
+        PRIM_MEDIA_PERMS_INTERACT, PRIM_MEDIA_PERM_ANYONE,
+        PRIM_MEDIA_PERMS_CONTROL, PRIM_MEDIA_PERM_ANYONE,
+        PRIM_MEDIA_WIDTH_PIXELS, 1024,
+        PRIM_MEDIA_HEIGHT_PIXELS, 768,
+        PRIM_MEDIA_CURRENT_URL, HUD_URL
+    ];
+    
+    llSetLinkPrimitiveParams(MOAP_LINK, [
+        PRIM_LINK_MEDIA, MOAP_FACE, mediaParams
+    ]);
+    
+    llOwnerSay("MOAP URL set successfully on link " + (string)MOAP_LINK + ", face " + (string)MOAP_FACE);
 }
 
 playDance(string danceId) {
@@ -243,7 +280,13 @@ loadOptions() {
 }
 
 sendToHUD(string message) {
-    llSetPrimMediaParams(0, [PRIM_MEDIA_CURRENT_URL, HUD_URL + "?msg=" + llEscapeURL(message)]);
+    // Send to web HUD via MOAP on the correct link
+    llSetLinkPrimitiveParams(MOAP_LINK, [
+        PRIM_LINK_MEDIA, MOAP_FACE, [
+            PRIM_MEDIA_CURRENT_URL, HUD_URL + "?msg=" + llEscapeURL(message)
+        ]
+    ]);
+    // Also send via link message for backup
     llMessageLinked(LINK_THIS, COMMAND_CHANNEL, message, NULL_KEY);
 }
 
@@ -286,24 +329,60 @@ sendOptionsToHUD() {
 }
 
 scanAnimations() {
-    llOwnerSay("Scanning inventory for animations...");
+    llOwnerSay("Inventory scan started...");
     
     integer count = llGetInventoryNumber(INVENTORY_ANIMATION);
     danceList = [];
     
+    if (count == 0) {
+        llOwnerSay("No animations found in inventory.");
+        sendEmptyDanceList();
+        return;
+    }
+    
     integer i;
+    list tempNames = [];
+    
     for (i = 0; i < count; i++) {
         string name = llGetInventoryName(INVENTORY_ANIMATION, i);
+        llOwnerSay("Detected animation: " + name);
+        tempNames += name;
+    }
+    
+    // Sort alphabetically, case-insensitive
+    tempNames = llListSort(tempNames, 1, TRUE);
+    
+    // Remove duplicates
+    list uniqueNames = [];
+    for (i = 0; i < llGetListLength(tempNames); i++) {
+        string name = llList2String(tempNames, i);
+        if (llListFindList(uniqueNames, [name]) == -1) {
+            uniqueNames += name;
+        }
+    }
+    
+    // Build dance list with IDs and keys
+    for (i = 0; i < llGetListLength(uniqueNames); i++) {
+        string name = llList2String(uniqueNames, i);
         key animKey = llGetInventoryKey(name);
-        
         string danceId = llMD5String(name, 0);
         
         danceList += [danceId, animKey, name];
     }
     
-    llOwnerSay("Found " + (string)count + " animations");
+    llOwnerSay("Scan complete. Found " + (string)llGetListLength(uniqueNames) + " unique animations.");
     
     sendLibraryToHUD();
+}
+
+sendEmptyDanceList() {
+    string emptyJson = "{\"dances\":[],\"empty\":true,\"message\":\"No dances found. Drop animations into the HUD contents, then press Scan.\"}";
+    sendToHUD("LIBRARY_DATA|" + emptyJson);
+}
+
+handleInventoryChanged() {
+    llOwnerSay("Inventory changed, rescanning animations...");
+    scanAnimations();
 }
 
 showMainMenu() {
@@ -323,20 +402,17 @@ parseAPIResponse(string body) {
 default {
     state_entry() {
         OWNER = llGetOwner();
-        llOwnerSay("Rizz Luxe Dancer HUD initialized");
+        llOwnerSay("Rizz Luxe Dancer HUD script started");
         llListen(COMMAND_CHANNEL, "", NULL_KEY, "");
         
-        llSetPrimMediaParams(0, [
-            PRIM_MEDIA_AUTO_PLAY, TRUE,
-            PRIM_MEDIA_FIRST_CLICK_INTERACT, TRUE,
-            PRIM_MEDIA_PERMS_INTERACT, PRIM_MEDIA_PERM_ANYONE,
-            PRIM_MEDIA_PERMS_CONTROL, PRIM_MEDIA_PERM_ANYONE,
-            PRIM_MEDIA_WIDTH_PIXELS, 1024,
-            PRIM_MEDIA_HEIGHT_PIXELS, 768,
-            PRIM_MEDIA_CURRENT_URL, HUD_URL
-        ]);
+        // Initialize MOAP
+        initializeMOAP();
         
+        // Load saved options
         loadOptions();
+        
+        // Scan animations on startup
+        scanAnimations();
     }
     
     on_rez(integer start_param) {
@@ -346,6 +422,9 @@ default {
     changed(integer change) {
         if (change & CHANGED_OWNER) {
             llResetScript();
+        }
+        else if (change & CHANGED_INVENTORY) {
+            handleInventoryChanged();
         }
     }
     

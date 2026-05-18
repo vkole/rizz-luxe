@@ -20,6 +20,8 @@ interface MainPanelProps {
   onToggleFavorite: (danceId: string) => void;
   onSelectItem?: (item: { id: string; type: 'folder' | 'dance' } | null) => void;
   selectedItem?: { id: string; type: 'folder' | 'dance' } | null;
+  onScanInventory?: () => void;
+  isScanning?: boolean;
 }
 
 export default function MainPanel({
@@ -30,6 +32,8 @@ export default function MainPanel({
   onToggleFavorite,
   onSelectItem,
   selectedItem,
+  onScanInventory,
+  isScanning,
 }: MainPanelProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
@@ -57,13 +61,35 @@ export default function MainPanel({
     }
 
     if (displayedDances.length === 0) {
-      return renderEmptyState(
-        'No dances found. Drop animations into the HUD inventory, then scan again.'
+      return (
+        <div>
+          {renderEmptyState(
+            'No dances found. Drop animations into the HUD inventory, then scan again.'
+          )}
+          {onScanInventory && (
+            <button
+              className="scan-button"
+              onClick={onScanInventory}
+              disabled={isScanning}
+            >
+              {isScanning ? 'Scanning...' : 'Scan Inventory'}
+            </button>
+          )}
+        </div>
       );
     }
 
     return (
       <div className="dance-list">
+        {onScanInventory && (
+          <button
+            className="scan-button"
+            onClick={onScanInventory}
+            disabled={isScanning}
+          >
+            {isScanning ? 'Scanning...' : 'Scan Inventory'}
+          </button>
+        )}
         {displayedDances.map((dance, idx) => (
           <div
             key={dance.id}

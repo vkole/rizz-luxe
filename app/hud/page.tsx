@@ -26,11 +26,37 @@ export default function HUD() {
   const [selectedItem, setSelectedItem] = useState<{ id: string; type: 'folder' | 'dance' } | null>(null);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isScanning, setIsScanning] = useState(false);
 
   // Load initial data from backend
   useEffect(() => {
     loadLibraryData();
+    // Listen for messages from LSL via MOAP
+    window.addEventListener('message', handleLSLMessage);
+    return () => {
+      window.removeEventListener('message', handleLSLMessage);
+    };
   }, []);
+
+  const handleLSLMessage = (event: MessageEvent) => {
+    try {
+      const data = event.data;
+      if (typeof data === 'string' && data.startsWith('LIBRARY_DATA|')) {
+        const jsonStr = data.replace('LIBRARY_DATA|', '');
+        const libraryData = JSON.parse(jsonStr);
+        
+        if (libraryData.empty) {
+          setDances([]);
+          addNotification('info', libraryData.message || 'No dances found');
+        } else {
+          setDances(libraryData.dances || []);
+          addNotification('success', `Loaded ${libraryData.dances?.length || 0} dances from LSL`);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to parse LSL message:', err);
+    }
+  };
 
   const loadLibraryData = async () => {
     setIsLoading(true);
@@ -105,6 +131,13 @@ export default function HUD() {
     setSelectedItem(item);
   };
 
+  const handleScanInventory = () => {
+    setIsScanning(true);
+    sendCommand('SCAN_INVENTORY', {});
+    addNotification('info', 'Scanning inventory for animations...');
+    setTimeout(() => setIsScanning(false), 3000);
+  };
+
   return (
     <div className="hud-container">
       <div className="hud-wrapper">
@@ -128,6 +161,8 @@ export default function HUD() {
               onToggleFavorite={toggleFavorite}
               onSelectItem={handleSelectItem}
               selectedItem={selectedItem}
+              onScanInventory={handleScanInventory}
+              isScanning={isScanning}
             />
           </div>
 

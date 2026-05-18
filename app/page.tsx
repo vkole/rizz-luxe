@@ -1,6 +1,12 @@
+'use client';
+
 import Link from 'next/link';
+import { useState } from 'react';
 
 export default function Home() {
+  const [launchHover, setLaunchHover] = useState(false);
+  const [featuresHover, setFeaturesHover] = useState(false);
+
   return (
     <main style={{
       minHeight: '100vh',
@@ -59,26 +65,15 @@ export default function Home() {
             style={{
               padding: '12px 32px',
               background: 'linear-gradient(135deg, #ff006e, #8338ec)',
-              color: '#f0f0f0',
-              textDecoration: 'none',
-              borderRadius: '6px',
-              fontWeight: 'bold',
-              textTransform: 'uppercase',
-              letterSpacing: '1px',
-              boxShadow: '0 0 30px rgba(255, 0, 110, 0.3)',
+              color: '#f0launchHover ? '0 0 40px rgba(255, 0, 110, 0.5)' : '0 0 30px rgba(255, 0, 110, 0.3)',
               transition: 'all 0.3s ease',
               border: 'none',
               cursor: 'pointer',
               fontSize: '1rem',
+              transform: launchHover ? 'translateY(-2px)' : 'translateY(0)',
             }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.boxShadow = '0 0 40px rgba(255, 0, 110, 0.5)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 0 30px rgba(255, 0, 110, 0.3)';
-            }}
+            onMouseEnter={() => setLaunchHover(true)}
+            onMouseLeave={() => setLaunchHover(false)}
           >
             Launch HUD
           </Link>
@@ -86,7 +81,7 @@ export default function Home() {
           <a href="#features"
             style={{
               padding: '12px 32px',
-              background: 'rgba(131, 56, 236, 0.2)',
+              background: featuresHover ? 'rgba(131, 56, 236, 0.4)' : 'rgba(131, 56, 236, 0.2)',
               color: '#8338ec',
               textDecoration: 'none',
               borderRadius: '6px',
@@ -97,9 +92,10 @@ export default function Home() {
               cursor: 'pointer',
               fontSize: '1rem',
               transition: 'all 0.3s ease',
+              boxShadow: featuresHover ? '0 0 20px rgba(131, 56, 236, 0.3)' : 'none',
             }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(131, 56, 236, 0.4)';
+            onMouseEnter={() => setFeaturesHover(true)}
+            onMouseLeave={() => setFeaturesHover(false) e.currentTarget.style.background = 'rgba(131, 56, 236, 0.4)';
               e.currentTarget.style.boxShadow = '0 0 20px rgba(131, 56, 236, 0.3)';
             }}
             onMouseLeave={(e) => {
